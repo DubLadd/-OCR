@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raw Text OCR // Canvas Edition</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <style>
+        :root {
+            --neon-magenta: #ff007f;
+            --magenta-glow: rgba(255, 0, 127, 0.4);
+            --bg-dark: #0a0a0a;
+            --glass-bg: rgba(20, 20, 20, 0.65);
+            --glass-border: rgba(255, 255, 255, 0.05);
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: #eaeaea;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .module-container {
+            width: 100%;
+            max-width: 900px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+        }
+
+        h2 {
+            margin-top: 0;
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--neon-magenta);
+            text-shadow: 0 0 8px var(--magenta-glow);
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 10px;
+        }
+
+        /* Canvas / Dropzone */
+        #canvas-container {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 2px dashed var(--glass-border);
+            border-radius: 8px;
+            margin-bottom: 15px;
+            position: relative;
+            overflow: hidden;
+            min-height: 300px;
+            transition: all 0.3s ease;
+        }
+
+        #canvas-container.dragover {
+            border-color: var(--neon-magenta);
+            box-shadow: inset 0 0 20px var(--magenta-glow);
+        }
+
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+            display: none; /* Hidden until image is loaded */
+            object-fit: contain;
+        }
+
+        .upload-prompt {
+            position: absolute;
+            text-align: center;
+            color: #666;
+            pointer-events: none;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .btn {
+            background: transparent;
+            color: var(--neon-magenta);
+            border: 1px solid var(--neon-magenta);
+            padding: 10px 15px;
+            cursor: pointer;
+            font-family: inherit;
+            text-transform: uppercase;
+            transition: all 0.2s;
+            text-align: center;
+            border-radius: 4px;
+        }
+
+        .btn:hover {
+            background: var(--neon-magenta);
+            color: #fff;
+            box-shadow: 0 0 15px var(--magenta-glow);
+        }
+
+        /* Output Textarea */
+        textarea {
+            flex-grow: 1;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-family: inherit;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            resize: none;
+            outline: none;
+            min-height: 300px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        #status-bar {
+            margin-top: 10px;
+            font-size: 0.85rem;
+            color: #888;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .status-active {
+            color: var(--neon-magenta);
+            text-shadow: 0 0 5px var(--magenta-glow);
+        }
+
+        @media (max-width: 768px) {
+            .module-container {
+                grid-template-columns: 1fr;
+            }
+            .glass-panel {
+                min-height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="module-container">
+        <!-- Input Module -->
+        <div class="glass-panel">
+            <h2>Image Render</h2>
+            <div id="canvas-container">
+                <div class="upload-prompt" id="prompt-text">Drag & Drop Page Here<br><br>or Click to Browse</div>
+                <canvas id="image-canvas"></canvas>
+            </div>
+            <input type="file" id="file-input" accept="image/*">
+            <button class="btn" onclick="document.getElementById('file-input').click()">Select Image</button>
+        </div>
+
+        <!-- Output Module -->
+        <div class="glass-panel">
+            <h2>Text Extraction</h2>
+            <textarea id="output-text" placeholder="Awaiting raw text stream..."></textarea>
+            <div id="status-bar">
+                <span id="status-msg">IDLE</span>
+                <span id="status-progress">0%</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvasContainer = document.getElementById('canvas-container');
+        const fileInput = document.getElementById('file-input');
+        const canvas = document.getElementById('image-canvas');
+        const ctx = canvas.getContext('2d');
+        const promptText = document.getElementById('prompt-text');
+        const outputText = document.getElementById('output-text');
+        const statusMsg = document.getElementById('status-msg');
+        const statusProgress = document.getElementById('status-progress');
+
+        // Allow clicking the dropzone to open file dialog too
+        canvasContainer.addEventListener('click', (e) => {
+             if(e.target !== canvas) {
+                 fileInput.click();
+             }
+        });
+
+        // Handle Drag and Drop
+        canvasContainer.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            canvasContainer.classList.add('dragover');
+        });
+
+        canvasContainer.addEventListener('dragleave', () => {
+            canvasContainer.classList.remove('dragover');
+        });
+
+        canvasContainer.addEventListener('drop', (e) => {
+            e.preventDefault();
+            canvasContainer.classList.remove('dragover');
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                processFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        // Handle Click Upload
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                processFile(e.target.files[0]);
+            }
+        });
+
+        function processFile(file) {
+            if (!file.type.startsWith('image/')) {
+                alert("Please upload an image file.");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    // Draw to canvas
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+                    
+                    canvas.style.display = 'block';
+                    promptText.style.display = 'none';
+
+                    // Run OCR
+                    runOCR(img);
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function runOCR(imageElement) {
+            outputText.value = '';
+            statusMsg.textContent = 'EXTRACTING TEXT...';
+            statusMsg.className = 'status-active';
+            statusProgress.textContent = '0%';
+
+            Tesseract.recognize(
+                imageElement,
+                'eng',
+                { logger: m => {
+                    if (m.status === 'recognizing text') {
+                        statusProgress.textContent = `${Math.round(m.progress * 100)}%`;
+                    }
+                }}
+            ).then(({ data: { text } }) => {
+                outputText.value = text;
+                statusMsg.textContent = 'COMPLETE';
+                statusMsg.className = '';
+                statusProgress.textContent = '100%';
+            }).catch(err => {
+                console.error(err);
+                statusMsg.textContent = 'ERROR';
+                statusMsg.style.color = 'red';
+            });
+        }
+    </script>
+</body>
+</html>
