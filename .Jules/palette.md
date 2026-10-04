@@ -1,0 +1,3 @@
+## 2024-05-18 - Accessible Async Status Bars
+**Learning:** When building interfaces with dynamic status bars that update during asynchronous operations (like OCR processing), screen readers won't automatically announce the changes if the text simply updates. This leaves visually impaired users unaware of progress or completion.
+**Action:** Consistently apply `aria-live="polite"` and `aria-atomic="true"` to status bar container elements. This pattern ensures screen readers will read the full text of the status bar (due to `aria-atomic`) whenever its contents change (due to `aria-live`), keeping all users informed of async task progress without aggressively interrupting them.

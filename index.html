@@ -171,8 +171,8 @@
         <!-- Output Module -->
         <div class="glass-panel">
             <h2>Text Extraction</h2>
-            <textarea id="output-text" placeholder="Awaiting raw text stream..."></textarea>
-            <div id="status-bar">
+            <textarea id="output-text" placeholder="Awaiting raw text stream..." aria-label="Extracted text"></textarea>
+            <div id="status-bar" aria-live="polite" aria-atomic="true">
                 <span id="status-msg">IDLE</span>
                 <span id="status-progress">0%</span>
             </div>
