@@ -221,6 +221,15 @@
             }
         });
 
+        // ⚡ Bolt Optimization: Cache the worker to prevent re-downloading/re-initializing WebAssembly on every upload
+        const workerPromise = Tesseract.createWorker('eng', 1, {
+            logger: m => {
+                if (m.status === 'recognizing text') {
+                    statusProgress.textContent = `${Math.round(m.progress * 100)}%`;
+                }
+            }
+        });
+
         function processFile(file) {
             if (!file.type.startsWith('image/')) {
                 alert("Please upload an image file.");
@@ -247,30 +256,24 @@
             reader.readAsDataURL(file);
         }
 
-        function runOCR(imageElement) {
+        async function runOCR(imageElement) {
             outputText.value = '';
             statusMsg.textContent = 'EXTRACTING TEXT...';
             statusMsg.className = 'status-active';
             statusProgress.textContent = '0%';
 
-            Tesseract.recognize(
-                imageElement,
-                'eng',
-                { logger: m => {
-                    if (m.status === 'recognizing text') {
-                        statusProgress.textContent = `${Math.round(m.progress * 100)}%`;
-                    }
-                }}
-            ).then(({ data: { text } }) => {
+            try {
+                const worker = await workerPromise;
+                const { data: { text } } = await worker.recognize(imageElement);
                 outputText.value = text;
                 statusMsg.textContent = 'COMPLETE';
                 statusMsg.className = '';
                 statusProgress.textContent = '100%';
-            }).catch(err => {
+            } catch (err) {
                 console.error(err);
                 statusMsg.textContent = 'ERROR';
                 statusMsg.style.color = 'red';
-            });
+            }
         }
     </script>
 </body>
