@@ -236,24 +236,22 @@
                 return;
             }
 
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const img = new Image();
-                img.onload = () => {
-                    // Draw to canvas
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    ctx.drawImage(img, 0, 0);
-                    
-                    canvas.style.display = 'block';
-                    promptText.style.display = 'none';
+            // ⚡ Bolt Optimization: Replace FileReader (Data URL) with URL.createObjectURL
+            // Avoids base64 encoding large images into memory, speeding up rendering and reducing RAM usage
+            const img = new Image();
+            img.onload = () => {
+                // Draw to canvas
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
 
-                    // Run OCR
-                    runOCR(img);
-                };
-                img.src = event.target.result;
+                canvas.style.display = 'block';
+                promptText.style.display = 'none';
+
+                // Run OCR
+                runOCR(img);
             };
-            reader.readAsDataURL(file);
+            img.src = URL.createObjectURL(file);
         }
 
         async function runOCR(imageElement) {
@@ -273,6 +271,9 @@
                 console.error(err);
                 statusMsg.textContent = 'ERROR';
                 statusMsg.style.color = 'red';
+            } finally {
+                // Free the object URL memory once OCR is complete
+                URL.revokeObjectURL(imageElement.src);
             }
         }
     </script>
