@@ -236,24 +236,26 @@
                 return;
             }
 
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const img = new Image();
-                img.onload = () => {
-                    // Draw to canvas
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    ctx.drawImage(img, 0, 0);
-                    
-                    canvas.style.display = 'block';
-                    promptText.style.display = 'none';
+            // ⚡ Bolt Optimization: Use URL.createObjectURL instead of FileReader to avoid base64 encoding
+            // which reduces memory usage by roughly ~33% for large images and saves CPU encoding time.
+            const objectUrl = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = async () => {
+                // Draw to canvas
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
 
-                    // Run OCR
-                    runOCR(img);
-                };
-                img.src = event.target.result;
+                canvas.style.display = 'block';
+                promptText.style.display = 'none';
+
+                // Run OCR
+                await runOCR(img);
+
+                // CRITICAL: Only revoke *after* the async OCR process finishes to avoid Tesseract fetch errors
+                URL.revokeObjectURL(objectUrl);
             };
-            reader.readAsDataURL(file);
+            img.src = objectUrl;
         }
 
         async function runOCR(imageElement) {
