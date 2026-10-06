@@ -45,6 +45,7 @@
             box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
             display: flex;
             flex-direction: column;
+            position: relative;
         }
 
         h2 {
@@ -171,7 +172,8 @@
         <!-- Output Module -->
         <div class="glass-panel">
             <h2>Text Extraction</h2>
-            <textarea id="output-text" placeholder="Awaiting raw text stream..."></textarea>
+            <button class="btn" id="copy-btn" style="display: none; position: absolute; top: 20px; right: 20px; font-size: 0.8rem; padding: 5px 10px; background-color: var(--bg-dark);">Copy</button>
+            <textarea id="output-text" aria-label="Extracted text" placeholder="Awaiting raw text stream..."></textarea>
             <div id="status-bar">
                 <span id="status-msg">IDLE</span>
                 <span id="status-progress">0%</span>
@@ -188,6 +190,17 @@
         const outputText = document.getElementById('output-text');
         const statusMsg = document.getElementById('status-msg');
         const statusProgress = document.getElementById('status-progress');
+        const copyBtn = document.getElementById('copy-btn');
+
+        copyBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(outputText.value).then(() => {
+                const originalText = copyBtn.textContent;
+                copyBtn.textContent = 'COPIED!';
+                setTimeout(() => {
+                    copyBtn.textContent = originalText;
+                }, 2000);
+            });
+        });
 
         // Allow clicking the dropzone to open file dialog too
         canvasContainer.addEventListener('click', (e) => {
@@ -258,6 +271,7 @@
 
         async function runOCR(imageElement) {
             outputText.value = '';
+            copyBtn.style.display = 'none';
             statusMsg.textContent = 'EXTRACTING TEXT...';
             statusMsg.className = 'status-active';
             statusProgress.textContent = '0%';
@@ -269,6 +283,7 @@
                 statusMsg.textContent = 'COMPLETE';
                 statusMsg.className = '';
                 statusProgress.textContent = '100%';
+                copyBtn.style.display = 'block';
             } catch (err) {
                 console.error(err);
                 statusMsg.textContent = 'ERROR';
