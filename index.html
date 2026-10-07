@@ -236,27 +236,25 @@
                 return;
             }
 
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const img = new Image();
-                img.onload = () => {
-                    // Draw to canvas
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    ctx.drawImage(img, 0, 0);
-                    
-                    canvas.style.display = 'block';
-                    promptText.style.display = 'none';
+            // ⚡ Bolt Optimization: Use URL.createObjectURL instead of FileReader to avoid blocking main thread with base64 encoding
+            const objectUrl = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = () => {
+                // Draw to canvas
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
 
-                    // Run OCR
-                    runOCR(img);
-                };
-                img.src = event.target.result;
+                canvas.style.display = 'block';
+                promptText.style.display = 'none';
+
+                // Run OCR
+                runOCR(img, objectUrl);
             };
-            reader.readAsDataURL(file);
+            img.src = objectUrl;
         }
 
-        async function runOCR(imageElement) {
+        async function runOCR(imageElement, objectUrl) {
             outputText.value = '';
             statusMsg.textContent = 'EXTRACTING TEXT...';
             statusMsg.className = 'status-active';
@@ -273,6 +271,10 @@
                 console.error(err);
                 statusMsg.textContent = 'ERROR';
                 statusMsg.style.color = 'red';
+            } finally {
+                if (objectUrl) {
+                    URL.revokeObjectURL(objectUrl);
+                }
             }
         }
     </script>
