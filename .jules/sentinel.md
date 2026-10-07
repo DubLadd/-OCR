@@ -1,0 +1,4 @@
+## 2024-03-24 - Content Security Policy for WebAssembly Web Workers
+**Vulnerability:** Missing Content Security Policy (CSP) exposed the application to potential Cross-Site Scripting (XSS) and unauthorized resource loading.
+**Learning:** Implementing a strict CSP for a static HTML app using Tesseract.js (which utilizes WebAssembly and Web Workers) requires very specific directives. Specifically, `script-src` must allow `'wasm-unsafe-eval'` and `'unsafe-inline'`. Additionally, `connect-src` needs to allow the CDN and `https://tessdata.projectnaptha.com` to fetch language models, and `worker-src` and `img-src` must allow `blob:` since Web Workers and image processing frequently use blob URLs.
+**Prevention:** When adding third-party libraries that rely on WebAssembly or Web Workers (like OCR, image processing, or heavy computations), carefully document and implement their specific CSP requirements to ensure security without breaking functionality.
