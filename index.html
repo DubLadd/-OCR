@@ -109,10 +109,15 @@
             border-radius: 4px;
         }
 
-        .btn:hover {
+        .btn:hover:not(:disabled) {
             background: var(--neon-magenta);
             color: #fff;
             box-shadow: 0 0 15px var(--magenta-glow);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         /* Output Textarea */
@@ -164,15 +169,15 @@
                 <div class="upload-prompt" id="prompt-text">Drag & Drop Page Here<br><br>or Click to Browse</div>
                 <canvas id="image-canvas"></canvas>
             </div>
-            <input type="file" id="file-input" accept="image/*">
-            <button class="btn" onclick="document.getElementById('file-input').click()">Select Image</button>
+            <input type="file" id="file-input" accept="image/*" aria-label="Upload image">
+            <button class="btn" id="select-btn" onclick="document.getElementById('file-input').click()">Select Image</button>
         </div>
 
         <!-- Output Module -->
         <div class="glass-panel">
             <h2>Text Extraction</h2>
-            <textarea id="output-text" placeholder="Awaiting raw text stream..."></textarea>
-            <div id="status-bar">
+            <textarea id="output-text" placeholder="Awaiting raw text stream..." aria-label="Extracted text"></textarea>
+            <div id="status-bar" aria-live="polite" aria-atomic="true">
                 <span id="status-msg">IDLE</span>
                 <span id="status-progress">0%</span>
             </div>
@@ -188,6 +193,7 @@
         const outputText = document.getElementById('output-text');
         const statusMsg = document.getElementById('status-msg');
         const statusProgress = document.getElementById('status-progress');
+        const selectBtn = document.getElementById('select-btn');
 
         // Allow clicking the dropzone to open file dialog too
         canvasContainer.addEventListener('click', (e) => {
@@ -261,6 +267,8 @@
             statusMsg.textContent = 'EXTRACTING TEXT...';
             statusMsg.className = 'status-active';
             statusProgress.textContent = '0%';
+            selectBtn.disabled = true;
+            fileInput.disabled = true;
 
             try {
                 const worker = await workerPromise;
@@ -273,6 +281,9 @@
                 console.error(err);
                 statusMsg.textContent = 'ERROR';
                 statusMsg.style.color = 'red';
+            } finally {
+                selectBtn.disabled = false;
+                fileInput.disabled = false;
             }
         }
     </script>
