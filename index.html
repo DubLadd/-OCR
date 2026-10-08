@@ -236,27 +236,26 @@
                 return;
             }
 
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const img = new Image();
-                img.onload = () => {
-                    // Draw to canvas
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    ctx.drawImage(img, 0, 0);
-                    
-                    canvas.style.display = 'block';
-                    promptText.style.display = 'none';
+            // ⚡ Bolt Optimization: Use URL.createObjectURL instead of FileReader to avoid
+            // blocking the main thread with O(N) base64 string conversion for large images.
+            const imgUrl = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = () => {
+                // Draw to canvas
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
 
-                    // Run OCR
-                    runOCR(img);
-                };
-                img.src = event.target.result;
+                canvas.style.display = 'block';
+                promptText.style.display = 'none';
+
+                // Run OCR
+                runOCR(img, imgUrl);
             };
-            reader.readAsDataURL(file);
+            img.src = imgUrl;
         }
 
-        async function runOCR(imageElement) {
+        async function runOCR(imageElement, imgUrl) {
             outputText.value = '';
             statusMsg.textContent = 'EXTRACTING TEXT...';
             statusMsg.className = 'status-active';
@@ -273,6 +272,11 @@
                 console.error(err);
                 statusMsg.textContent = 'ERROR';
                 statusMsg.style.color = 'red';
+            } finally {
+                // Revoke object URL to free memory only after OCR process has completed
+                if (imgUrl) {
+                    URL.revokeObjectURL(imgUrl);
+                }
             }
         }
     </script>
